@@ -37,6 +37,7 @@ type EventType = typeof EventTypes[any];
 
 @Entity({ name: 'cns_registry_events' })
 @Index(['blockNumber', 'blockchain', 'networkId', 'logIndex'], { unique: true })
+@Index(['node', 'type', 'blockchain'])
 export default class CnsRegistryEvent extends Model {
   static EventTypes = EventTypes;
   static DomainOperationTypes = DomainOperationTypes;
@@ -50,7 +51,7 @@ export default class CnsRegistryEvent extends Model {
 
   @IsString()
   @Column({ type: 'text' })
-  blockchain: keyof typeof Blockchain;
+  blockchain: Omit<keyof typeof Blockchain, 'ZIL'>;
 
   @IsNumber()
   @Column('int')
@@ -184,5 +185,21 @@ export default class CnsRegistryEvent extends Model {
     }
     await repository.remove(eventsToDelete);
     return { deleted: eventsToDelete.length, affected: affectedTokenIds };
+  }
+
+  static async getLastTransferEvent(
+    node: string,
+    blockchain: Omit<keyof typeof Blockchain, 'ZIL'>,
+  ): Promise<CnsRegistryEvent | undefined> {
+    return CnsRegistryEvent.findOne({
+      where: {
+        node: node,
+        type: 'Transfer',
+        blockchain: blockchain,
+      },
+      order: {
+        blockNumber: 'DESC',
+      },
+    });
   }
 }
