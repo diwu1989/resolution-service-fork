@@ -1,4 +1,5 @@
 import { MetadataImageFontSize } from '../types/common';
+import btoa from 'btoa';
 
 export const BackgroundColor = '4C47F7';
 export const FontFamily =

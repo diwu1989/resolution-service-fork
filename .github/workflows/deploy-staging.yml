@@ -26,6 +26,7 @@ env:
   POLYGON_UNS_REGISTRY_EVENTS_STARTING_BLOCK: 18956099
   POLYGON_CONFIRMATION_BLOCKS: 200
   POLYGON_BLOCK_FETCH_LIMIT: 50
+  METADATA_BASE_URI: 'https://metadata.staging.unstoppabledomains.com'
 
 jobs:
   build_and_push_docker_image:

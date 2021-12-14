@@ -125,21 +125,16 @@ const getImageURLFromTokenURI = async (tokenURI: string) => {
   };
 };
 
-export const getSocialPictureUrl = async (
+export const hasSocialPicture = async (
   avatarRecord: string,
   ownerAddress: string,
-): Promise<{
-  pictureOrUrl: string;
-  nftStandard: string;
-  backgroundColor: string;
-}> => {
+): Promise<boolean> => {
   if (!avatarRecord || !ownerAddress) {
-    return { pictureOrUrl: '', nftStandard: '', backgroundColor: '' };
+    return false;
   }
   try {
-    const { nftStandard, contractAddress, tokenId } = parsePictureRecord(
-      avatarRecord,
-    );
+    const { nftStandard, contractAddress, tokenId } =
+      parsePictureRecord(avatarRecord);
     const nftContract = await constructNFTContract(
       contractAddress,
       nftStandard,
@@ -149,9 +144,27 @@ export const getSocialPictureUrl = async (
       nftStandard,
       tokenId,
     });
-    if (!isOwner) {
-      throw new Error('User does not own NFT');
-    }
+    return isOwner === '' ? false : isOwner;
+  } catch (err) {
+    return false;
+  }
+};
+
+export const getSocialPictureUrl = async (
+  avatarRecord: string,
+  ownerAddress: string,
+): Promise<{
+  pictureOrUrl: string;
+  nftStandard: string;
+  backgroundColor: string;
+}> => {
+  if (!(await hasSocialPicture(avatarRecord, ownerAddress))) {
+    return { pictureOrUrl: '', nftStandard: '', backgroundColor: '' };
+  }
+  try {
+    const { nftStandard, contractAddress, tokenId } =
+      parsePictureRecord(avatarRecord);
+
     if (nftStandard === 'cryptopunks') {
       const cryptoPunksImageContract = await constructNFTContract(
         CryptoPunksImageContractAddress,
@@ -162,6 +175,11 @@ export const getSocialPictureUrl = async (
       );
       return { pictureOrUrl: svgImage, nftStandard, backgroundColor: '' };
     }
+
+    const nftContract = await constructNFTContract(
+      contractAddress,
+      nftStandard,
+    );
     const tokenURI = await getTokenURI({
       contract: nftContract,
       nftStandard,
@@ -177,9 +195,23 @@ export const getSocialPictureUrl = async (
 };
 
 export const getNFTSocialPicture = async (
-  imageUrl: string,
+  nftStandard: string,
+  pictureOrUrl: string,
 ): Promise<[string, string | null]> => {
-  const resp = await nodeFetch(useIpfsGateway(imageUrl), { timeout: 3000 });
+  if (nftStandard === 'cryptopunks') {
+    const data = btoa(
+      pictureOrUrl
+        .replace(`data:image/svg+xml;utf8,`, ``)
+        .replace(
+          `<svg xmlns="http://www.w3.org/2000/svg" version="1.2" viewBox="0 0 24 24">`,
+          `<svg xmlns="http://www.w3.org/2000/svg" version="1.2" viewBox="0 0 24 24"><rect width="100%" height="100%" fill="#648595"/>`,
+        ),
+    );
+    const mimeType = 'image/svg+xml';
+    return [data, mimeType];
+  }
+
+  const resp = await nodeFetch(useIpfsGateway(pictureOrUrl), { timeout: 3000 });
   if (!resp.ok) {
     throw new Error('Failed to fetch NFT image');
   }
@@ -220,17 +252,7 @@ export const createSocialPictureImage = (
   });
 
   try {
-    return (
-      'data:image/svg+xml;base64,' +
-      btoa(
-        encodeURIComponent(svg).replace(
-          /%([0-9A-F]{2})/g,
-          function (match, p1) {
-            return String.fromCharCode(parseInt(p1, 16));
-          },
-        ),
-      )
-    );
+    return svg;
   } catch (e) {
     console.log(e);
     return '';
